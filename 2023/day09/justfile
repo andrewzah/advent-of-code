@@ -1,0 +1,6 @@
+p2:
+  ruby p2.rb
+
+p1:
+  ruby p1.rb
+
