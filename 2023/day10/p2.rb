@@ -32,8 +32,6 @@ class Day10P2
       "7" => "┐",
       "F" => "┌",
     }
-    @left = {}
-    @right = {}
 
     parse_input
   end
@@ -54,7 +52,6 @@ class Day10P2
   end
 
   def get_neighbors(directions, row, col)
-    p "curr char: #{@grid[row][col]}, at [#{row}, #{col}]"
     neighbors = {
       east: [row, col + 1],
       west: [row, col - 1],
@@ -65,41 +62,9 @@ class Day10P2
     neighbors.filter! do |k, (n_row, n_col)|
       n_row >= 0 && n_row < @grid.length && n_col >= 0 && n_col < @grid[0].length
     end
-    # s -> e
-    # e -> n
-    # n -> w
-    # w -> s
-    neighbors, dots = neighbors.partition do |_, (n_row, n_col)|
+    neighbors.filter! do |_, (n_row, n_col)|
       "S|-LJ7F".chars.include?(@grid[n_row][n_col])
     end
-    p neighbors
-    p dots
-
-    dots.each do |k, (n_row, n_col)|
-      directions.each do |direction|
-        p "dir: #{direction}"
-        p "p.k: #{k}"
-        p = "^"
-
-        next if direction == :start
-        next if @left.has_key?([n_row, n_col])
-        case direction
-        when :south
-          @left[[n_row, n_col]] = 1 if k == :east
-          @right[[n_row, n_col]] = 1 if k == :west
-        when :east
-          @left[[n_row, n_col]] = 1 if k == :north
-          @right[[n_row, n_col]] = 1 if k == :south
-        when :north
-          @left[[n_row, n_col]] = 1 if k == :west
-          @right[[n_row, n_col]] = 1 if k == :east
-        when :west
-          @left[[n_row, n_col]] = 1 if k == :south
-          @right[[n_row, n_col]] = 1 if k == :north
-        end
-      end
-    end
-
     neighbors.filter! do |k, (n_row, n_col)|
       @mappings[@grid[row][col]].include?(k)
     end
@@ -107,9 +72,31 @@ class Day10P2
     neighbors.map { |k, v| [v, k] }
   end
 
-  # 1. iter until start is found
-  # 2. keep track of direction
-  # 3. all non-valid-path chars on the LEFT are interior, assuming
+  def shoelace(arr)
+    nums = []
+
+    arr.each_with_index do |(left, right), idx|
+      next_nums = nil
+
+      if idx == arr.length - 1
+        next_nums = arr[0]
+      else
+        next_nums = arr[idx+1]
+      end
+
+      next_left = next_nums[0]
+      next_right = next_nums[1]
+
+      nums[idx] = (left * next_right) - (right * next_left)
+    end
+
+    nums.reduce(:+) * 0.5
+  end
+
+  def picks_theorem(area, loop_length)
+    area - 0.5 * loop_length + 1
+  end
+
   def solve
     seen = {}
     queue = [@start_loc]
@@ -135,10 +122,6 @@ class Day10P2
           print "S"
         elsif seen.has_key?([r_idx, c_idx])
           print @glyphs[char]
-        elsif @left.has_key?([r_idx, c_idx])
-          print "L"
-        elsif @right.has_key?([r_idx, c_idx])
-          print "R"
         else
           if char == "I"
             print "I"
@@ -151,13 +134,32 @@ class Day10P2
       print "\n"
     end
 
-    p @left.length
-    p @right.length
-    @left.length
+    area = shoelace(seen.map{|k, v| k})
+    picks = picks_theorem(area.abs, seen.length)
+
+    puts "loop length: #{seen.length}"
+    puts "area: #{area}"
+    puts "picks: #{picks}"
+
+    picks
   end
 end
 
 class Day10P2Test < Minitest::Test
+  def test_shoelace
+    coords = [
+      [4, 4],
+      [0, 1],
+      [-2, 5],
+      [-6, 0],
+      [-1, -4],
+      [5, -2]
+    ]
+    result = Day10P2.new("sample_1_p2.txt").shoelace(coords)
+    assert_equal(55, result)
+  end
+
+
   #def test_solve_example_1
   #  result = Day10P2.new("sample_1_p2.txt").solve
   #  assert_equal(4, result)
@@ -178,8 +180,8 @@ class Day10P2Test < Minitest::Test
     assert_equal(result, 10)
   end
 
-  #def test_solve_input
-  #  result = Day10P2.new("input.txt").solve
-  #  assert_equal(result, -1)
-  #end
+  def test_solve_input
+    result = Day10P2.new("input.txt").solve
+    assert_equal(result, 529)
+  end
 end
